@@ -1,6 +1,9 @@
 package websockets
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Room struct {
 	id         string
@@ -9,6 +12,7 @@ type Room struct {
 	connect    chan *Client
 	disconnect chan *Client
 	closed     chan bool
+	handlers   map[string]func(data any)
 }
 
 var (
@@ -18,67 +22,50 @@ var (
 func JoinRoom(roomId string, client *Client) *Room {
 	if r, ok := rooms[roomId]; ok {
 		r.connect <- client
-		r.Emit("user_joined", client.ID)
 		return rooms[roomId]
 	}
 
 	room := &Room{
 		id:         roomId,
 		clients:    make(map[*Client]bool),
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan []byte, 256),
 		connect:    make(chan *Client),
 		disconnect: make(chan *Client),
 		closed:     make(chan bool),
+		handlers:   make(map[string]func(data any)),
 	}
+	go room.run()
 	rooms[roomId] = room
 
-	go room.run()
 	room.connect <- client
-	room.Emit("user_joined", client.ID)
-
 	return room
-}
-
-func LeaveRoom(roomId string, client *Client) {
-	if r, ok := rooms[roomId]; ok {
-		r.disconnect <- client
-		r.Emit("user_left", client.ID)
-	}
-}
-
-func (r *Room) Close() {
 }
 
 func (r *Room) run() {
 	for {
 		select {
 		case client := <-r.connect:
+			r.Broadcast("user_joined", client.ID)
 			r.clients[client] = true
 		case client := <-r.disconnect:
+			r.Broadcast("user_left", client.ID)
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
-				client.Close()
-			}
-
-			if len(r.clients) == 0 {
-				r.Close()
+				close(client.send)
 			}
 		case message := <-r.broadcast:
 			for client := range r.clients {
 				select {
 				case client.send <- message:
+				default:
 				}
 			}
 		case <-r.closed:
-			for client := range r.clients {
-				client.Close()
-			}
-			return
 		}
 	}
 }
 
-func (r *Room) Emit(event string, data any) {
+func (r *Room) Broadcast(event string, data any) {
 	message, err := json.Marshal(Message{
 		Event: event,
 		Data:  data,
@@ -87,5 +74,9 @@ func (r *Room) Emit(event string, data any) {
 		return
 	}
 
-	r.broadcast <- message
+	select {
+	case r.broadcast <- message:
+	default:
+		println(fmt.Sprintf("Dropped message: %s", string(message)))
+	}
 }

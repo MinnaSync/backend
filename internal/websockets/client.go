@@ -3,14 +3,31 @@ package websockets
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = 1 * time.Second
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
 )
 
 type Client struct {
 	ID           string
 	conn         *websocket.Conn
+	room         *Room
 	disconnected chan bool
 	send         chan []byte
 	recieve      chan []byte
@@ -50,6 +67,7 @@ func NewClient(id string, conn *websocket.Conn) *Client {
 	return &Client{
 		ID:           id,
 		conn:         conn,
+		room:         nil,
 		send:         make(chan []byte, 256),
 		recieve:      make(chan []byte, 256),
 		disconnected: make(chan bool),
@@ -58,10 +76,6 @@ func NewClient(id string, conn *websocket.Conn) *Client {
 }
 
 func (c *Client) Handle(incoming *Message) {
-	if c.handlers == nil {
-		return
-	}
-
 	event := c.handlers[incoming.Event]
 	if event == nil {
 		return
@@ -87,6 +101,7 @@ func (c *Client) Off(event string) {
 }
 
 func (c *Client) On(event string, handler func(data any)) {
+	fmt.Println("Registering handler for:", event)
 	c.handlers[event] = handler
 }
 
@@ -97,19 +112,18 @@ func (c *Client) Once(event string, handler func(data any)) {
 	}
 }
 
-func (c *Client) Close() {
-}
-
 func (c *Client) Join(roomId string) *Room {
-	return JoinRoom(roomId, c)
-}
-
-func (c *Client) Leave(roomId string) {
-	println(roomId)
-	LeaveRoom(roomId, c)
+	c.room = JoinRoom(roomId, c)
+	return c.room
 }
 
 func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+
 	for {
 		select {
 		case message := <-c.send:
@@ -122,22 +136,34 @@ func (c *Client) writePump() {
 
 			err := json.Unmarshal(message, &incoming)
 			if err != nil {
-				continue
+				return
 			}
 
 			c.Handle(&incoming)
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		case <-c.disconnected:
-			c.Close()
-			return
+			if c.room != nil {
+				c.room.disconnect <- c
+			}
+
+			delete(Clients, c.ID)
 		}
 	}
 }
 
 func (c *Client) readPump() {
+	defer func() {
+		c.disconnected <- true
+	}()
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			return
+			break
 		}
 
 		c.recieve <- message
