@@ -3,7 +3,6 @@ package websockets
 import (
 	"crypto/rand"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -101,7 +100,6 @@ func (c *Client) Off(event string) {
 }
 
 func (c *Client) On(event string, handler func(data any)) {
-	fmt.Println("Registering handler for:", event)
 	c.handlers[event] = handler
 }
 

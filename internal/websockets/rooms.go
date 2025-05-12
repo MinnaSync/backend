@@ -2,7 +2,6 @@ package websockets
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 type Room struct {
@@ -77,6 +76,5 @@ func (r *Room) Broadcast(event string, data any) {
 	select {
 	case r.broadcast <- message:
 	default:
-		println(fmt.Sprintf("Dropped message: %s", string(message)))
 	}
 }
