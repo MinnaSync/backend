@@ -3,6 +3,7 @@ package websockets
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -17,20 +18,26 @@ const (
 	pongWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = 1 * time.Second
+	pingPeriod = 30 * time.Second
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
 )
 
+type ClientUser struct {
+	Username string
+}
+
 type Client struct {
-	ID           string
+	id           string
 	conn         *websocket.Conn
 	room         *Room
 	disconnected chan bool
 	send         chan []byte
 	recieve      chan []byte
 	handlers     map[string]func(data any)
+
+	User *ClientUser
 }
 
 var (
@@ -46,31 +53,19 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func generateID() string {
-	var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-"
-
-	length := 10
-
-	ll := len(chars)
-	b := make([]byte, length)
-	rand.Read(b)
-
-	for i := range length {
-		b[i] = chars[int(b[i])%ll]
-	}
-
-	return string(b)
-}
-
 func NewClient(id string, conn *websocket.Conn) *Client {
 	return &Client{
-		ID:           id,
+		id:           id,
 		conn:         conn,
 		room:         nil,
 		send:         make(chan []byte, 256),
 		recieve:      make(chan []byte, 256),
 		disconnected: make(chan bool),
 		handlers:     make(map[string]func(data any)),
+
+		User: &ClientUser{
+			Username: fmt.Sprintf("Guest_%v", id),
+		},
 	}
 }
 
@@ -148,7 +143,7 @@ func (c *Client) writePump() {
 				c.room.disconnect <- c
 			}
 
-			delete(Clients, c.ID)
+			delete(Clients, c.id)
 		}
 	}
 }
@@ -168,13 +163,29 @@ func (c *Client) readPump() {
 	}
 }
 
+func generateId() string {
+	var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-"
+
+	length := 10
+
+	ll := len(chars)
+	b := make([]byte, length)
+	rand.Read(b)
+
+	for i := range length {
+		b[i] = chars[int(b[i])%ll]
+	}
+
+	return string(b)
+}
+
 func Serve(w http.ResponseWriter, r *http.Request) *Client {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return nil
 	}
 
-	client := NewClient(generateID(), c)
+	client := NewClient(generateId(), c)
 
 	go client.writePump()
 	go client.readPump()

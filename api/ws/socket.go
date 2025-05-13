@@ -13,6 +13,8 @@ func Socket(c *gin.Context) {
 	}
 
 	client.On("connection", func(data any) {
+		// Tell the client that they are connected
+		// This is used to start other handlers on connection.
 		client.Emit("connected", data)
 
 		client.On("join_room", func(data any) {
@@ -23,7 +25,21 @@ func Socket(c *gin.Context) {
 
 			room := client.Join(roomId)
 			client.On("send_message", func(data any) {
-				room.Broadcast("receive_message", data)
+				messageContent, ok := data.(map[string]interface{})
+				if !ok {
+					println(messageContent)
+					return
+				}
+
+				message, ok := messageContent["message"].(string)
+				if !ok {
+					return
+				}
+
+				room.Broadcast("receive_message", ClientReceiveMessage{
+					Username: client.User.Username,
+					Message:  message,
+				})
 			})
 		})
 	})

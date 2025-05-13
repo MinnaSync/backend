@@ -18,5 +18,5 @@ func main() {
 	ws.Register(wsRoutes)
 
 	go restRoutes.Run(":8443")
-	wsRoutes.Run(":3000")
+	wsRoutes.Run(":3001")
 }

@@ -44,10 +44,16 @@ func (r *Room) run() {
 	for {
 		select {
 		case client := <-r.connect:
-			r.Broadcast("user_joined", client.ID)
+			r.Broadcast("user_joined", ClientJoinRoom{
+				Username: client.User.Username,
+			})
+
 			r.clients[client] = true
 		case client := <-r.disconnect:
-			r.Broadcast("user_left", client.ID)
+			r.Broadcast("user_left", ClientLeaveRoom{
+				Username: client.User.Username,
+			})
+
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
 				close(client.send)
