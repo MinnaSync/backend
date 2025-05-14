@@ -17,29 +17,30 @@ func Socket(c *gin.Context) {
 		// This is used to start other handlers on connection.
 		client.Emit("connected", data)
 
+		var room *websockets.Room
 		client.On("join_room", func(data any) {
 			roomId, ok := data.(string)
 			if !ok {
 				return
 			}
 
-			room := client.Join(roomId)
-			client.On("send_message", func(data any) {
-				messageContent, ok := data.(map[string]interface{})
-				if !ok {
-					println(messageContent)
-					return
-				}
+			room = client.Join(roomId)
+		})
 
-				message, ok := messageContent["message"].(string)
-				if !ok {
-					return
-				}
+		client.On("send_message", func(data any) {
+			messageContent, ok := data.(map[string]interface{})
+			if !ok {
+				return
+			}
 
-				room.Broadcast("receive_message", ClientReceiveMessage{
-					Username: client.User.Username,
-					Message:  message,
-				})
+			message, ok := messageContent["message"].(string)
+			if !ok {
+				return
+			}
+
+			room.Broadcast("receive_message", ClientReceiveMessage{
+				Username: client.User.Username,
+				Message:  message,
 			})
 		})
 	})
