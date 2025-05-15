@@ -2,7 +2,10 @@ module github.com/MinnaSync/minna-sync-backend
 
 go 1.24.1
 
-require github.com/gin-gonic/gin v1.10.0
+require (
+	github.com/etherlabsio/go-m3u8 v1.0.0
+	github.com/gin-gonic/gin v1.10.0
+)
 
 require (
 	github.com/google/go-cmp v0.6.0 // indirect
