@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/gorilla/websocket"
 )
 
@@ -36,6 +37,8 @@ type Client struct {
 	send         chan []byte
 	recieve      chan []byte
 	handlers     map[string]func(data any)
+	ratelimit    time.Duration
+	lastRead     time.Time
 
 	User *ClientUser
 }
@@ -58,10 +61,12 @@ func NewClient(id string, conn *websocket.Conn) *Client {
 		id:           id,
 		conn:         conn,
 		room:         nil,
-		send:         make(chan []byte, 256),
-		recieve:      make(chan []byte, 256),
+		send:         make(chan []byte, maxMessageSize),
+		recieve:      make(chan []byte, maxMessageSize),
 		disconnected: make(chan bool),
 		handlers:     make(map[string]func(data any)),
+		ratelimit:    250 * time.Millisecond,
+		lastRead:     time.Now(),
 
 		User: &ClientUser{
 			Username: fmt.Sprintf("Guest_%v", id),
@@ -119,7 +124,14 @@ func (c *Client) writePump() {
 
 	for {
 		select {
-		case message := <-c.send:
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
 			err := c.conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
 				return
@@ -129,6 +141,7 @@ func (c *Client) writePump() {
 
 			err := json.Unmarshal(message, &incoming)
 			if err != nil {
+				logger.Log.Debug("Failed to unmarshal message.", "err", err)
 				return
 			}
 
@@ -136,6 +149,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logger.Log.Debug("Failed to write ping.", "err", err)
 				return
 			}
 		case <-c.disconnected:
@@ -153,10 +167,21 @@ func (c *Client) readPump() {
 		c.disconnected <- true
 	}()
 
+	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
 	for {
+		now := time.Now()
+		if now.Sub(c.lastRead) < c.ratelimit {
+			continue
+		}
+		c.lastRead = now
+
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			break
+			logger.Log.Debug("Websocket disconnected.", "err", err)
+			return
 		}
 
 		c.recieve <- message
