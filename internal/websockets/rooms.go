@@ -2,7 +2,6 @@ package websockets
 
 import (
 	"encoding/json"
-	"math"
 	"time"
 )
 
@@ -11,7 +10,7 @@ type QueuedMedia struct {
 	Series         string `json:"series"`
 	URL            string `json:"url"`
 	PosterImageURL string `json:"poster_image_url"`
-	// Subtitles      string  `json:"subtitles"`
+
 	Duration float64 `json:"-"`
 }
 
@@ -22,12 +21,20 @@ type NowPlayingMedia struct {
 	PosterImageURL string  `json:"poster_image_url"`
 	Paused         bool    `json:"paused"`
 	CurrentTime    float64 `json:"current_time"`
-	// Subtitles      string  `json:"subtitles"`
-	Duration float64 `json:"-"`
+
+	Duration   float64   `json:"-"`
+	LastResume time.Time `json:"-"`
 
 	ticker *time.Ticker
-	pause  chan bool
 	done   chan bool
+}
+
+func (n *NowPlayingMedia) CurrentPlaybackTime() float64 {
+	if n.Paused {
+		return n.CurrentTime
+	}
+
+	return n.CurrentTime + float64(time.Since(n.LastResume).Seconds())
 }
 
 type Room struct {
@@ -96,6 +103,7 @@ func (r *Room) run() {
 				}
 			}
 		case <-r.closed:
+			return
 		}
 	}
 }
@@ -103,7 +111,7 @@ func (r *Room) run() {
 func (r *Room) QueueInsert(data QueuedMedia) {
 	if r.Playing != nil {
 		r.Queue = append(r.Queue, data)
-		r.Broadcast("queue_updated", &r.Playing)
+		r.Broadcast("queue_updated", data)
 		return
 	}
 
@@ -112,12 +120,14 @@ func (r *Room) QueueInsert(data QueuedMedia) {
 		Series:         data.Series,
 		URL:            data.URL,
 		PosterImageURL: data.PosterImageURL,
-		Duration:       data.Duration,
-		// Subtitles:      data.Subtitles,
-		Paused:      false,
-		CurrentTime: 0,
+		Paused:         false,
+		CurrentTime:    0,
+
+		Duration:   data.Duration,
+		LastResume: time.Now(),
 
 		ticker: time.NewTicker(1 * time.Second),
+		done:   make(chan bool),
 	}
 
 	r.Broadcast("media_changed", &r.Playing)
@@ -125,22 +135,19 @@ func (r *Room) QueueInsert(data QueuedMedia) {
 }
 
 func (r *Room) QueueChange() {
-	if len(r.Queue) == 0 {
-		r.Playing = nil
-		return
-	}
-
 	next := r.Queue[0]
 	r.Playing = &NowPlayingMedia{
 		Title:          next.Title,
 		URL:            next.URL,
 		PosterImageURL: next.PosterImageURL,
-		Duration:       next.Duration,
-		// Subtitles:      next.Subtitles,
-		Paused:      false,
-		CurrentTime: 0,
+		Paused:         false,
+		CurrentTime:    0,
+
+		Duration:   next.Duration,
+		LastResume: time.Now(),
 
 		ticker: time.NewTicker(1 * time.Second),
+		done:   make(chan bool),
 	}
 
 	r.Broadcast("media_changed", &r.Playing)
@@ -153,6 +160,12 @@ func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
 	}
 
 	if data.Paused != nil && r.Playing.Paused != *data.Paused {
+		if *data.Paused == false {
+			r.Playing.LastResume = time.Now()
+		} else {
+			r.Playing.CurrentTime = r.Playing.CurrentPlaybackTime()
+		}
+
 		r.Playing.Paused = *data.Paused
 	}
 
@@ -174,19 +187,25 @@ func (r *Room) startTicker() {
 				continue
 			}
 
-			r.Playing.CurrentTime += float64(1 * time.Second.Seconds())
+			currentTime := r.Playing.CurrentPlaybackTime()
 
-			// If the current time is an interval of 5, tell the client to sync if it's desynced.
-			if math.Mod(r.Playing.CurrentTime, 5) == 0 {
-				r.Broadcast("state_updated", ClientTimeUpdated{
-					Paused:      r.Playing.Paused,
-					CurrentTime: r.Playing.CurrentTime,
-				})
-			}
+			r.Broadcast("state_updated", ClientTimeUpdated{
+				Paused:      r.Playing.Paused,
+				CurrentTime: currentTime,
+			})
 
-			if r.Playing.CurrentTime >= r.Playing.Duration-0.1 {
-				r.QueueChange()
+			if currentTime >= r.Playing.Duration-0.250 {
+				if len(r.Queue) != 0 {
+					r.QueueChange()
+					continue
+				}
+
+				close(r.Playing.done)
 			}
+		case <-r.Playing.done:
+			r.Playing.ticker.Stop()
+			r.Playing = nil
+			return
 		}
 	}
 }

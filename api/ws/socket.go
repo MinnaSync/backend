@@ -27,6 +27,15 @@ func Socket(c *gin.Context) {
 			}
 
 			room = client.Join(roomId)
+
+			// since playing could be nil, we have to see if media is playing first.
+			// has to be done this way otherwise there'll be a nil reference error.
+			// reason this has to be done in the first place is because of how playback time is calculates.
+			playing := room.Playing
+			if playing != nil {
+				playing.CurrentTime = playing.CurrentPlaybackTime()
+			}
+
 			client.Emit("room_data", websockets.RoomData{
 				NowPlaying: room.Playing,
 				Queue:      room.Queue,
@@ -87,8 +96,7 @@ func Socket(c *gin.Context) {
 				Series:         series,
 				URL:            url,
 				PosterImageURL: posterImageURL,
-				// Subtitles:      subtitles,
-				Duration: duration,
+				Duration:       duration,
 			})
 		})
 
