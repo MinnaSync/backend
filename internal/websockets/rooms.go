@@ -2,6 +2,7 @@ package websockets
 
 import (
 	"encoding/json"
+	"math"
 	"time"
 )
 
@@ -194,7 +195,7 @@ func (r *Room) startTicker() {
 				CurrentTime: currentTime,
 			})
 
-			if currentTime >= r.Playing.Duration-0.250 {
+			if math.Abs(currentTime-r.Playing.Duration) < 1 {
 				if len(r.Queue) != 0 {
 					r.QueueChange()
 					continue
