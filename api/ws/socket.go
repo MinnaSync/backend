@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/MinnaSync/minna-sync-backend/internal/m3u8_duration"
 	websockets "github.com/MinnaSync/minna-sync-backend/internal/websockets"
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ func Socket(c *gin.Context) {
 			}
 
 			room = client.Join(roomId)
-			client.Emit("room_data", RoomData{
+			client.Emit("room_data", websockets.RoomData{
 				NowPlaying: room.Playing,
 				Queue:      room.Queue,
 			})
@@ -43,7 +44,7 @@ func Socket(c *gin.Context) {
 				return
 			}
 
-			room.Broadcast("receive_message", ClientReceiveMessage{
+			room.Broadcast("receive_message", websockets.ClientReceiveMessage{
 				Username: client.User.Username,
 				Message:  message,
 			})
@@ -67,15 +68,47 @@ func Socket(c *gin.Context) {
 
 			duration, err := m3u8_duration.FetchM3u8Duration(url)
 			if err != nil {
-				println(err.Error())
+				logger.Log.Error("Failed to fetch m3u8 duration.", "err", err)
+				return
+			}
+
+			series, ok := media["series"].(string)
+			if !ok {
+				return
+			}
+
+			posterImageURL, ok := media["poster_image_url"].(string)
+			if !ok {
 				return
 			}
 
 			room.QueueInsert(websockets.QueuedMedia{
-				Title:    title,
-				URL:      url,
+				Title:          title,
+				Series:         series,
+				URL:            url,
+				PosterImageURL: posterImageURL,
+				// Subtitles:      subtitles,
 				Duration: duration,
 			})
+		})
+
+		client.On("player_state", func(data any) {
+			state, ok := data.(map[string]interface{})
+			if !ok {
+				return
+			}
+
+			updatedState := websockets.ClientStateUpdated{}
+
+			if paused, ok := state["paused"].(bool); ok {
+				updatedState.Paused = &paused
+			}
+
+			if currentTime, ok := state["current_time"].(float64); ok {
+				updatedState.CurrentTime = &currentTime
+			}
+
+			room.UpdatePlayerState(updatedState, client)
 		})
 	})
 }

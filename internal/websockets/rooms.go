@@ -7,19 +7,26 @@ import (
 )
 
 type QueuedMedia struct {
-	Title    string  `json:"title"`
-	URL      string  `json:"url"`
+	Title          string `json:"title"`
+	Series         string `json:"series"`
+	URL            string `json:"url"`
+	PosterImageURL string `json:"poster_image_url"`
+	// Subtitles      string  `json:"subtitles"`
 	Duration float64 `json:"-"`
 }
 
 type NowPlayingMedia struct {
-	Title       string  `json:"title"`
-	URL         string  `json:"url"`
-	Duration    float64 `json:"-"`
-	Paused      bool    `json:"paused"`
-	CurrentTime float64 `json:"current_time"`
+	Title          string  `json:"title"`
+	Series         string  `json:"series"`
+	URL            string  `json:"url"`
+	PosterImageURL string  `json:"poster_image_url"`
+	Paused         bool    `json:"paused"`
+	CurrentTime    float64 `json:"current_time"`
+	// Subtitles      string  `json:"subtitles"`
+	Duration float64 `json:"-"`
 
 	ticker *time.Ticker
+	pause  chan bool
 	done   chan bool
 }
 
@@ -101,9 +108,12 @@ func (r *Room) QueueInsert(data QueuedMedia) {
 	}
 
 	r.Playing = &NowPlayingMedia{
-		Title:       data.Title,
-		URL:         data.URL,
-		Duration:    data.Duration,
+		Title:          data.Title,
+		Series:         data.Series,
+		URL:            data.URL,
+		PosterImageURL: data.PosterImageURL,
+		Duration:       data.Duration,
+		// Subtitles:      data.Subtitles,
 		Paused:      false,
 		CurrentTime: 0,
 
@@ -115,35 +125,68 @@ func (r *Room) QueueInsert(data QueuedMedia) {
 }
 
 func (r *Room) QueueChange() {
+	if len(r.Queue) == 0 {
+		r.Playing = nil
+		return
+	}
+
 	next := r.Queue[0]
 	r.Playing = &NowPlayingMedia{
-		Title:       next.Title,
-		URL:         next.URL,
-		Duration:    next.Duration,
+		Title:          next.Title,
+		URL:            next.URL,
+		PosterImageURL: next.PosterImageURL,
+		Duration:       next.Duration,
+		// Subtitles:      next.Subtitles,
 		Paused:      false,
 		CurrentTime: 0,
+
+		ticker: time.NewTicker(1 * time.Second),
 	}
 
 	r.Broadcast("media_changed", &r.Playing)
 	r.Queue = r.Queue[1:]
 }
 
+func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
+	if r.Playing == nil {
+		return
+	}
+
+	if data.Paused != nil && r.Playing.Paused != *data.Paused {
+		r.Playing.Paused = *data.Paused
+	}
+
+	if data.CurrentTime != nil && r.Playing.CurrentTime != *data.CurrentTime {
+		r.Playing.CurrentTime = *data.CurrentTime
+	}
+
+	r.Emit("state_updated", ClientStateUpdated{
+		Paused:      &r.Playing.Paused,
+		CurrentTime: &r.Playing.CurrentTime,
+	}, c)
+}
+
 func (r *Room) startTicker() {
 	for {
 		select {
 		case <-r.Playing.ticker.C:
+			if r.Playing.Paused {
+				continue
+			}
+
 			r.Playing.CurrentTime += float64(1 * time.Second.Seconds())
 
-			// If the current time is an interval of 5, tell the client to sync if it's desynced..
+			// If the current time is an interval of 5, tell the client to sync if it's desynced.
 			if math.Mod(r.Playing.CurrentTime, 5) == 0 {
-				r.Broadcast("time_updated", &r.Playing)
+				r.Broadcast("state_updated", ClientTimeUpdated{
+					Paused:      r.Playing.Paused,
+					CurrentTime: r.Playing.CurrentTime,
+				})
 			}
 
-			if r.Playing.CurrentTime >= r.Playing.Duration {
+			if r.Playing.CurrentTime >= r.Playing.Duration-0.1 {
 				r.QueueChange()
 			}
-		case <-r.Playing.done:
-			break
 		}
 	}
 }
@@ -160,5 +203,26 @@ func (r *Room) Broadcast(event string, data any) {
 	select {
 	case r.broadcast <- message:
 	default:
+	}
+}
+
+func (r *Room) Emit(event string, data any, c *Client) {
+	message, err := json.Marshal(Message{
+		Event: event,
+		Data:  data,
+	})
+	if err != nil {
+		return
+	}
+
+	for client := range r.clients {
+		if client.id == c.id {
+			continue
+		}
+
+		select {
+		case client.send <- message:
+		default:
+		}
 	}
 }
