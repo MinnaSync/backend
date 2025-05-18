@@ -17,6 +17,7 @@ func Proxy(c *gin.Context) {
 	}
 
 	req, _ := http.NewRequest("GET", proxiedUrl.String(), nil)
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -34,6 +35,12 @@ func Proxy(c *gin.Context) {
 	response, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	for k, v := range resp.Header {
+		for _, vv := range v {
+			c.Header(k, vv)
+		}
 	}
 
 	c.Data(statusCode, contentType, response)
