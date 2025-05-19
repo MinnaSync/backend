@@ -2,7 +2,6 @@ package websockets
 
 import (
 	"encoding/json"
-	"math"
 	"time"
 )
 
@@ -177,6 +176,7 @@ func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
 	r.Emit("state_updated", ClientStateUpdated{
 		Paused:      &r.Playing.Paused,
 		CurrentTime: &r.Playing.CurrentTime,
+		UserUpdated: true,
 	}, c)
 }
 
@@ -184,18 +184,18 @@ func (r *Room) startTicker() {
 	for {
 		select {
 		case <-r.Playing.ticker.C:
-			if r.Playing.Paused {
-				continue
-			}
-
 			currentTime := r.Playing.CurrentPlaybackTime()
 
-			r.Broadcast("state_updated", ClientTimeUpdated{
-				Paused:      r.Playing.Paused,
-				CurrentTime: currentTime,
-			})
+			// Tell the client the state every 10 seconds to resync if necessary.
+			if int64(currentTime)%10 == 0 && !r.Playing.Paused {
+				r.Broadcast("state_updated", ClientTimeUpdated{
+					Paused:      r.Playing.Paused,
+					CurrentTime: currentTime,
+					UserUpdated: false,
+				})
+			}
 
-			if math.Abs(currentTime-r.Playing.Duration) < 1 {
+			if currentTime > r.Playing.Duration {
 				if len(r.Queue) != 0 {
 					r.QueueChange()
 					continue

@@ -16,11 +16,13 @@ type ClientLeaveRoom struct {
 type ClientTimeUpdated struct {
 	Paused      bool    `json:"paused"`
 	CurrentTime float64 `json:"current_time"`
+	UserUpdated bool    `json:"user_updated"`
 }
 
 type ClientStateUpdated struct {
 	Paused      *bool    `json:"paused"`
 	CurrentTime *float64 `json:"current_time"`
+	UserUpdated bool     `json:"user_updated"`
 }
 
 type ClientSendMessage struct {
