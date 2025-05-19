@@ -143,6 +143,7 @@ func (r *Room) QueueChange() {
 	next := r.Queue[0]
 	r.Playing = &NowPlayingMedia{
 		Title:          next.Title,
+		Series:         next.Series,
 		URL:            next.URL,
 		PosterImageURL: next.PosterImageURL,
 		Paused:         false,
