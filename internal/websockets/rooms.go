@@ -95,6 +95,10 @@ func (r *Room) run() {
 				delete(r.clients, client)
 				close(client.send)
 			}
+
+			if len(r.clients) == 0 {
+				close(r.closed)
+			}
 		case message := <-r.broadcast:
 			for client := range r.clients {
 				select {
@@ -103,6 +107,7 @@ func (r *Room) run() {
 				}
 			}
 		case <-r.closed:
+			delete(rooms, r.id)
 			return
 		}
 	}
