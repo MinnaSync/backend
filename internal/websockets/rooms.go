@@ -6,6 +6,7 @@ import (
 )
 
 type QueuedMedia struct {
+	ID             string `json:"id"`
 	Title          string `json:"title"`
 	Series         string `json:"series"`
 	URL            string `json:"url"`
@@ -40,6 +41,7 @@ func (n *NowPlayingMedia) CurrentPlaybackTime() float64 {
 type Room struct {
 	id         string
 	clients    map[*Client]bool
+	controller *Client
 	broadcast  chan []byte
 	connect    chan *Client
 	disconnect chan *Client
@@ -63,6 +65,7 @@ func JoinRoom(roomId string, client *Client) *Room {
 	room := &Room{
 		id:         roomId,
 		clients:    make(map[*Client]bool),
+		controller: client,
 		broadcast:  make(chan []byte, 256),
 		connect:    make(chan *Client),
 		disconnect: make(chan *Client),
@@ -165,6 +168,10 @@ func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
 		return
 	}
 
+	if r.controller != c {
+		return
+	}
+
 	if data.Paused != nil && r.Playing.Paused != *data.Paused {
 		if *data.Paused == false {
 			r.Playing.LastResume = time.Now()
@@ -193,13 +200,11 @@ func (r *Room) startTicker() {
 			currentTime := r.Playing.CurrentPlaybackTime()
 
 			// Tell the client the state every 10 seconds to resync if necessary.
-			if int64(currentTime)%10 == 0 && !r.Playing.Paused {
-				r.Broadcast("state_updated", ClientTimeUpdated{
-					Paused:      r.Playing.Paused,
-					CurrentTime: currentTime,
-					UserUpdated: false,
-				})
-			}
+			r.Broadcast("state_updated", ClientTimeUpdated{
+				Paused:      r.Playing.Paused,
+				CurrentTime: currentTime,
+				UserUpdated: false,
+			})
 
 			if currentTime > r.Playing.Duration {
 				if len(r.Queue) != 0 {

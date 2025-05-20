@@ -65,6 +65,11 @@ func Socket(c *gin.Context) {
 				return
 			}
 
+			id, ok := media["id"].(string)
+			if !ok {
+				return
+			}
+
 			title, ok := media["title"].(string)
 			if !ok {
 				return
@@ -92,6 +97,7 @@ func Socket(c *gin.Context) {
 			}
 
 			room.QueueInsert(websockets.QueuedMedia{
+				ID:             id,
 				Title:          title,
 				Series:         series,
 				URL:            url,
