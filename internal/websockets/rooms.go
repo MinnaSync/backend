@@ -2,7 +2,10 @@ package websockets
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 )
 
 type QueuedMedia struct {
@@ -101,6 +104,21 @@ func (r *Room) run() {
 
 			if len(r.clients) == 0 {
 				close(r.closed)
+			} else {
+				if r.controller != client {
+					continue
+				}
+
+				var newController *Client
+				for c := range r.clients {
+					newController = c
+					break
+				}
+
+				if newController != nil {
+					r.controller = newController
+					logger.Log.Debug(fmt.Sprintf("User %s is now the controller for room %s.", newController.User.Username, r.id))
+				}
 			}
 		case message := <-r.broadcast:
 			for client := range r.clients {
