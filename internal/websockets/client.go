@@ -207,6 +207,7 @@ func generateId() string {
 func Serve(w http.ResponseWriter, r *http.Request) *Client {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		logger.Log.Error("Failed to upgrade websocket.", "err", err)
 		return nil
 	}
 
