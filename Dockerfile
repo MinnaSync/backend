@@ -1,4 +1,4 @@
-FROM golang:1.23.3
+FROM golang:latest
 
 # Setup Build Directory
 RUN mkdir -p /build
