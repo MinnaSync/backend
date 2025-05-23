@@ -187,6 +187,14 @@ func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
 	}
 
 	if r.controller != c {
+		currentTime := r.Playing.CurrentPlaybackTime()
+
+		// Tell the client to sync back since they are not the controller.
+		r.Broadcast("state_sync", ClientTimeUpdated{
+			Paused:      r.Playing.Paused,
+			CurrentTime: currentTime,
+		})
+
 		return
 	}
 
@@ -216,12 +224,8 @@ func (r *Room) startTicker() {
 		case <-r.Playing.ticker.C:
 			currentTime := r.Playing.CurrentPlaybackTime()
 
-			// Keep forcing the client to stay synced to the current time when paused.
+			// Do not push any sync events.
 			if r.Playing.Paused {
-				r.Broadcast("state_sync", ClientTimeUpdated{
-					Paused:      r.Playing.Paused,
-					CurrentTime: currentTime,
-				})
 				continue
 			}
 
