@@ -204,10 +204,9 @@ func (r *Room) UpdatePlayerState(data ClientStateUpdated, c *Client) {
 		r.Playing.CurrentTime = *data.CurrentTime
 	}
 
-	r.Emit("state_updated", ClientStateUpdated{
-		Paused:      &r.Playing.Paused,
-		CurrentTime: &r.Playing.CurrentTime,
-		UserUpdated: true,
+	r.Emit("state_updated", ClientTimeUpdated{
+		Paused:      r.Playing.Paused,
+		CurrentTime: r.Playing.CurrentTime,
 	}, c)
 }
 
@@ -217,13 +216,25 @@ func (r *Room) startTicker() {
 		case <-r.Playing.ticker.C:
 			currentTime := r.Playing.CurrentPlaybackTime()
 
-			// Tell the client the state every 10 seconds to resync if necessary.
-			r.Broadcast("state_updated", ClientTimeUpdated{
-				Paused:      r.Playing.Paused,
-				CurrentTime: currentTime,
-				UserUpdated: false,
-			})
+			// Keep forcing the client to stay synced to the current time when paused.
+			if r.Playing.Paused {
+				r.Broadcast("state_sync", ClientTimeUpdated{
+					Paused:      r.Playing.Paused,
+					CurrentTime: currentTime,
+				})
+				continue
+			}
 
+			// Otheriwse, tell all clients to sync the state every 10 seconds of the current time.
+			if (int64(currentTime) % 10) == 0 {
+				r.Broadcast("state_sync", ClientTimeUpdated{
+					Paused:      r.Playing.Paused,
+					CurrentTime: currentTime,
+				})
+			}
+
+			// When the duration is up, it should attempt to change the queue.
+			// Otherwise, it closes the playing as done.
 			if currentTime > r.Playing.Duration {
 				if len(r.Queue) != 0 {
 					r.QueueChange()
