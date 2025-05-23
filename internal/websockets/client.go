@@ -36,6 +36,7 @@ type Client struct {
 	disconnected chan bool
 	send         chan []byte
 	recieve      chan []byte
+	err          chan []byte
 	handlers     map[string]func(data any)
 	ratelimit    time.Duration
 	lastRead     time.Time
@@ -64,6 +65,7 @@ func NewClient(id string, conn *websocket.Conn) *Client {
 		room:         nil,
 		send:         make(chan []byte, maxMessageSize),
 		recieve:      make(chan []byte, maxMessageSize),
+		err:          make(chan []byte, maxMessageSize),
 		disconnected: make(chan bool),
 		handlers:     make(map[string]func(data any)),
 		ratelimit:    250 * time.Millisecond,
@@ -135,6 +137,7 @@ func (c *Client) writePump() {
 
 			err := c.conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
+				logger.Log.Error("Failed to write message.", "err", err)
 				return
 			}
 		case message := <-c.recieve:
@@ -142,7 +145,7 @@ func (c *Client) writePump() {
 
 			err := json.Unmarshal(message, &incoming)
 			if err != nil {
-				logger.Log.Debug("Failed to unmarshal message.", "err", err)
+				logger.Log.Error("Failed to unmarshal message.", "err", err)
 				return
 			}
 
@@ -150,7 +153,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Log.Debug("Failed to write ping.", "err", err)
+				logger.Log.Error("Failed to write ping.", "err", err)
 				return
 			}
 		case <-c.disconnected:

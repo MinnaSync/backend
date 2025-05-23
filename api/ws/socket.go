@@ -23,6 +23,10 @@ func Socket(c *gin.Context) {
 		client.On("join_room", func(data any) {
 			roomId, ok := data.(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to join room. ID is not string.",
+				})
+
 				return
 			}
 
@@ -45,11 +49,18 @@ func Socket(c *gin.Context) {
 		client.On("send_message", func(data any) {
 			messageContent, ok := data.(map[string]interface{})
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to send message. Content is not interface.",
+				})
+
 				return
 			}
 
 			message, ok := messageContent["message"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to send message. Message is not string.",
+				})
 				return
 			}
 
@@ -60,39 +71,71 @@ func Socket(c *gin.Context) {
 		})
 
 		client.On("queue_media", func(data any) {
+			// TODO: In the future, some of these aren't really required.
+			// For example: title, series, and poster_image_url are used just for filler.
+			// We only need to actually keep track of an ID, url, and duration since the server relies on that.
+
 			media, ok := data.(map[string]interface{})
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media.",
+				})
+
 				return
 			}
 
 			id, ok := media["id"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. ID is not string.",
+				})
+
 				return
 			}
 
 			title, ok := media["title"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. Title is not string.",
+				})
+
 				return
 			}
 
 			url, ok := media["url"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. URL is not string.",
+				})
+
 				return
 			}
 
 			duration, err := m3u8_duration.FetchM3u8Duration(url)
 			if err != nil {
 				logger.Log.Error("Failed to fetch m3u8 duration.", "err", err)
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. Unable to fetch duration for queued m3u8 file.",
+				})
+
 				return
 			}
 
 			series, ok := media["series"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. Series it not string.",
+				})
+
 				return
 			}
 
 			posterImageURL, ok := media["poster_image_url"].(string)
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to queue media. Poster image is not string.",
+				})
+
 				return
 			}
 
@@ -109,6 +152,10 @@ func Socket(c *gin.Context) {
 		client.On("player_state", func(data any) {
 			state, ok := data.(map[string]interface{})
 			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to update player state. State is not interface.",
+				})
+
 				return
 			}
 

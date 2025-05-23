@@ -5,6 +5,10 @@ type Message struct {
 	Data  any    `json:"data"`
 }
 
+type ErrorMessage struct {
+	Reason string `json:"reason"`
+}
+
 type ClientJoinRoom struct {
 	Username string `json:"username"`
 }
