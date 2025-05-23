@@ -71,14 +71,12 @@ func Socket(c *gin.Context) {
 		})
 
 		client.On("queue_media", func(data any) {
-			// TODO: In the future, some of these aren't really required.
-			// For example: title, series, and poster_image_url are used just for filler.
-			// We only need to actually keep track of an ID, url, and duration since the server relies on that.
+			var mediaData websockets.QueuedMedia
 
 			media, ok := data.(map[string]interface{})
 			if !ok {
 				client.Emit("error", websockets.ErrorMessage{
-					Reason: "Failed to queue media.",
+					Reason: "Failed to queue media. Invalid structure.",
 				})
 
 				return
@@ -92,14 +90,10 @@ func Socket(c *gin.Context) {
 
 				return
 			}
+			mediaData.ID = id
 
-			title, ok := media["title"].(string)
-			if !ok {
-				client.Emit("error", websockets.ErrorMessage{
-					Reason: "Failed to queue media. Title is not string.",
-				})
-
-				return
+			if title, ok := media["title"].(string); ok {
+				mediaData.Title = &title
 			}
 
 			url, ok := media["url"].(string)
@@ -110,6 +104,7 @@ func Socket(c *gin.Context) {
 
 				return
 			}
+			mediaData.URL = url
 
 			duration, err := m3u8_duration.FetchM3u8Duration(url)
 			if err != nil {
@@ -120,33 +115,17 @@ func Socket(c *gin.Context) {
 
 				return
 			}
+			mediaData.Duration = duration
 
-			series, ok := media["series"].(string)
-			if !ok {
-				client.Emit("error", websockets.ErrorMessage{
-					Reason: "Failed to queue media. Series it not string.",
-				})
-
-				return
+			if series, ok := media["series"].(string); ok {
+				mediaData.Series = &series
 			}
 
-			posterImageURL, ok := media["poster_image_url"].(string)
-			if !ok {
-				client.Emit("error", websockets.ErrorMessage{
-					Reason: "Failed to queue media. Poster image is not string.",
-				})
-
-				return
+			if posterImageURL, ok := media["poster_image_url"].(string); ok {
+				mediaData.PosterImageURL = &posterImageURL
 			}
 
-			room.QueueInsert(websockets.QueuedMedia{
-				ID:             id,
-				Title:          title,
-				Series:         series,
-				URL:            url,
-				PosterImageURL: posterImageURL,
-				Duration:       duration,
-			})
+			room.QueueInsert(mediaData)
 		})
 
 		client.On("player_state", func(data any) {

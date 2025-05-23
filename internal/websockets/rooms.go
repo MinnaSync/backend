@@ -9,20 +9,20 @@ import (
 )
 
 type QueuedMedia struct {
-	ID             string `json:"id"`
-	Title          string `json:"title"`
-	Series         string `json:"series"`
-	URL            string `json:"url"`
-	PosterImageURL string `json:"poster_image_url"`
+	ID             string  `json:"id"`
+	Title          *string `json:"title"`
+	Series         *string `json:"series"`
+	URL            string  `json:"url"`
+	PosterImageURL *string `json:"poster_image_url"`
 
 	Duration float64 `json:"-"`
 }
 
 type NowPlayingMedia struct {
-	Title          string  `json:"title"`
-	Series         string  `json:"series"`
+	Title          *string `json:"title"`
+	Series         *string `json:"series"`
 	URL            string  `json:"url"`
-	PosterImageURL string  `json:"poster_image_url"`
+	PosterImageURL *string `json:"poster_image_url"`
 	Paused         bool    `json:"paused"`
 	CurrentTime    float64 `json:"current_time"`
 
