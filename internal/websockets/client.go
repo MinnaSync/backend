@@ -50,9 +50,10 @@ var (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// We really don't need the origin to be checked by the upgrader.
+	// It's checked in a business layer further up.
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		return origin == "https://minna.gura.sa.com"
+		return true
 	},
 }
 
