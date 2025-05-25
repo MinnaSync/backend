@@ -87,7 +87,7 @@ func (r *Room) run() {
 	for {
 		select {
 		case client := <-r.connect:
-			r.Broadcast("user_joined", ClientJoinRoom{
+			r.Broadcast("user_joined", ClientJoinedRoom{
 				Username: client.User.Username,
 			})
 

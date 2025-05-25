@@ -10,6 +10,10 @@ type ErrorMessage struct {
 }
 
 type ClientJoinRoom struct {
+	ChannelId string `json:"channel_id"`
+}
+
+type ClientJoinedRoom struct {
 	Username string `json:"username"`
 }
 

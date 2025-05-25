@@ -21,7 +21,16 @@ func Socket(c *gin.Context) {
 
 		var room *websockets.Room
 		client.On("join_room", func(data any) {
-			roomId, ok := data.(string)
+			joinInfo, ok := data.(map[string]interface{})
+			if !ok {
+				client.Emit("error", websockets.ErrorMessage{
+					Reason: "Failed to join room. Info is not interface.",
+				})
+
+				return
+			}
+
+			roomId, ok := joinInfo["channel_id"].(string)
 			if !ok {
 				client.Emit("error", websockets.ErrorMessage{
 					Reason: "Failed to join room. ID is not string.",
