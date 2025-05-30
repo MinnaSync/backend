@@ -31,6 +31,7 @@ type ClientUser struct {
 
 type Client struct {
 	id           string
+	name         string
 	conn         *websocket.Conn
 	room         *Room
 	disconnected chan bool
@@ -42,6 +43,11 @@ type Client struct {
 	lastRead     time.Time
 
 	User *ClientUser
+}
+
+type ClientOptions struct {
+	Id   string
+	Name *string
 }
 
 var (
@@ -58,9 +64,12 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func NewClient(id string, conn *websocket.Conn) *Client {
+func NewClient(conn *websocket.Conn, id string) *Client {
+	defaultName := fmt.Sprintf("Guest_%s", id)
+
 	return &Client{
 		id:           id,
+		name:         defaultName,
 		conn:         conn,
 		room:         nil,
 		send:         make(chan []byte, maxMessageSize),
@@ -215,7 +224,7 @@ func Serve(w http.ResponseWriter, r *http.Request) *Client {
 		return nil
 	}
 
-	client := NewClient(generateId(), c)
+	client := NewClient(c, generateId())
 
 	go client.writePump()
 	go client.readPump()

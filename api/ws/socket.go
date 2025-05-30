@@ -39,6 +39,12 @@ func Socket(c *gin.Context) {
 				return
 			}
 
+			if username, ok := joinInfo["guest_username"].(string); ok {
+				if len := len(username); len > 3 && len < 16 {
+					client.User.Username = username
+				}
+			}
+
 			room = client.Join(roomId)
 
 			// since playing could be nil, we have to see if media is playing first.
