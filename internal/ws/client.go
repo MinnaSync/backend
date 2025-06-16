@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"sync"
 	"time"
 
 	"github.com/MinnaSync/minna-sync-backend/internal/logger"
@@ -14,8 +13,6 @@ type UserInfo struct {
 }
 
 type Client struct {
-	mu sync.Mutex
-
 	id   string
 	conn *websocket.Conn
 
@@ -33,8 +30,6 @@ func NewClient(conn *websocket.Conn) *Client {
 	id := uuid.NewString()
 
 	return &Client{
-		mu: sync.Mutex{},
-
 		id:   id,
 		conn: conn,
 
@@ -53,14 +48,8 @@ func NewClient(conn *websocket.Conn) *Client {
 func (c *Client) writePump() {
 	ticker := time.NewTicker(PingInterval)
 	defer func() {
-		if c.Channel != nil {
-			c.Channel.leave <- c
-		}
-
 		ticker.Stop()
 		c.conn.Close()
-
-		c.Disconnected <- true
 	}()
 
 	for {
@@ -90,6 +79,14 @@ func (c *Client) writePump() {
 }
 
 func (c *Client) readPump() {
+	defer func() {
+		if c.Channel != nil {
+			c.Channel.leave <- c
+		}
+
+		c.Disconnected <- true
+	}()
+
 	c.conn.SetReadLimit(int64(MaxBufferSize))
 	c.conn.SetReadDeadline(time.Now().Add(ResponseWait))
 	c.conn.SetPongHandler(func(_ string) error {
