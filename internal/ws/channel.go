@@ -3,6 +3,8 @@ package ws
 import (
 	"sync"
 	"time"
+
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 )
 
 var (
@@ -60,6 +62,7 @@ func (c *Channel) open() {
 		select {
 		case client, open := <-c.join:
 			if !open {
+				logger.Log.Warn("Client attempted to join closed channel.")
 				return
 			}
 

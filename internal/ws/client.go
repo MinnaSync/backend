@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
 )
@@ -81,6 +82,7 @@ func (c *Client) writePump() {
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(ResponseWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logger.Log.Error("Failed to ping client.")
 				return
 			}
 		}

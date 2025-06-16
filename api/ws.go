@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/MinnaSync/minna-sync-backend/internal/m3u8_duration"
 	"github.com/MinnaSync/minna-sync-backend/internal/ws"
 	"github.com/gofiber/contrib/websocket"
@@ -16,13 +17,13 @@ func Websocket(c *websocket.Conn) {
 		client.On("join_channel", func(msg any) {
 			joinInfo, ok := msg.(map[string]any)
 			if !ok {
-				println("not ok 1")
+				logger.Log.Error("Client failed to connect to channel.")
 				return
 			}
 
 			channelId, ok := joinInfo["channel_id"].(string)
 			if !ok {
-				println("not ok 2")
+				logger.Log.Error("Client provided an invalid channel_id.")
 				return
 			}
 
