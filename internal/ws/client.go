@@ -40,7 +40,7 @@ func NewClient(conn *websocket.Conn) *Client {
 		User: UserInfo{
 			Username: "Guest_" + id,
 		},
-		Disconnected: make(chan bool),
+		Disconnected: make(chan bool, 1),
 	}
 }
 

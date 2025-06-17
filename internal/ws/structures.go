@@ -30,6 +30,7 @@ type PlaybackState struct {
 type RoomData struct {
 	NowPlaying *NowPlayingMedia `json:"now_playing"`
 	Queue      []Media          `json:"queue"`
+	Messages   []ChannelMessage `json:"messages"`
 }
 
 // -- Channels --
@@ -69,4 +70,22 @@ func (n *NowPlayingMedia) CurrentPlaybackTime() float64 {
 type PlaybackStateUpdated struct {
 	Paused      *bool    `json:"paused"`
 	CurrentTime *float64 `json:"current_time"`
+}
+
+type MessageType int
+
+const (
+	MessageTypeNotification MessageType = iota
+	MessageTypeUserJoin
+	MessageTypeUserLeave
+	MessageTypeUserMessage
+	MessageTypeMediaChanged
+	MessageTypeMediaQueued
+)
+
+type ChannelMessage struct {
+	Type     MessageType `json:"type"`
+	UTCEpoch int64       `json:"utc_epoch"`
+	Username string      `json:"username"`
+	Content  string      `json:"content"`
 }

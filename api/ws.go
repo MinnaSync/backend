@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/MinnaSync/minna-sync-backend/internal/m3u8_duration"
 	"github.com/MinnaSync/minna-sync-backend/internal/ws"
@@ -17,18 +19,18 @@ func Websocket(c *websocket.Conn) {
 		client.On("join_channel", func(msg any) {
 			joinInfo, ok := msg.(map[string]any)
 			if !ok {
-				logger.Log.Error("Client failed to connect to channel.")
+				logger.Log.Debug("Client failed to join. Join info is not a structure.")
 				return
 			}
 
 			channelId, ok := joinInfo["channel_id"].(string)
 			if !ok {
-				logger.Log.Error("Client provided an invalid channel_id.")
+				logger.Log.Debug("Client provided an invalid channel_id.")
 				return
 			}
 
 			if username, ok := joinInfo["guest_username"].(string); ok {
-				if len := len(username); len > 3 && len < 16 {
+				if len := len(username); len >= 3 && len <= 16 {
 					client.User.Username = username
 				}
 			}
@@ -47,23 +49,28 @@ func Websocket(c *websocket.Conn) {
 			client.Emit("room_data", ws.RoomData{
 				NowPlaying: nowPlaying,
 				Queue:      channel.Queued,
+				Messages:   channel.Messages,
 			})
 		})
 
 		client.On("send_message", func(msg any) {
 			messageContent, ok := msg.(map[string]any)
 			if !ok {
+				logger.Log.Debug("Message failed to send. Content is not a structure.")
 				return
 			}
 
 			message, ok := messageContent["message"].(string)
 			if !ok {
+				logger.Log.Debug("Message failed to send. Message content is not a string.")
 				return
 			}
 
-			channel.Emit("receive_message", ws.ClientMessage{
+			channel.SendMessage(ws.ChannelMessage{
+				Type:     ws.MessageTypeUserMessage,
+				UTCEpoch: time.Now().Unix(),
 				Username: client.User.Username,
-				Message:  message,
+				Content:  message,
 			})
 		})
 
@@ -72,11 +79,13 @@ func Websocket(c *websocket.Conn) {
 
 			media, ok := msg.(map[string]any)
 			if !ok {
+				logger.Log.Debug("Media failed to queue. Media is not a structure.")
 				return
 			}
 
 			id, ok := media["id"].(string)
 			if !ok {
+				logger.Log.Debug("Media failed to queue. Media ID is not a string.")
 				return
 			}
 			mediaData.ID = id
@@ -87,12 +96,14 @@ func Websocket(c *websocket.Conn) {
 
 			url, ok := media["url"].(string)
 			if !ok {
+				logger.Log.Debug("Media failed to queue. Media URL is not a string.")
 				return
 			}
 			mediaData.URL = url
 
 			duration, err := m3u8_duration.FetchM3u8Duration(url)
 			if err != nil {
+				logger.Log.Debug("Media failed to queue. Failed to fetch duration.")
 				return
 			}
 			mediaData.Duration = duration

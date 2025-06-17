@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,8 +19,9 @@ type Channel struct {
 	controller  *Client
 	connections map[*Client]bool
 
-	Playing *NowPlayingMedia
-	Queued  []Media
+	Playing  *NowPlayingMedia
+	Queued   []Media
+	Messages []ChannelMessage
 
 	join  chan *Client
 	leave chan *Client
@@ -41,8 +43,9 @@ func JoinChannel(channelId string, client *Client) *Channel {
 		controller:  client,
 		connections: make(map[*Client]bool),
 
-		Playing: nil,
-		Queued:  make([]Media, 0),
+		Playing:  nil,
+		Queued:   make([]Media, 0),
+		Messages: make([]ChannelMessage, 0, 100),
 
 		join:  make(chan *Client),
 		leave: make(chan *Client),
@@ -67,21 +70,32 @@ func (c *Channel) open() {
 			}
 
 			c.connections[client] = true
-			c.Emit("user_joined", ClientJoinedRoom{
-				Username: client.User.Username,
+			c.SendMessage(ChannelMessage{
+				Type:     MessageTypeUserJoin,
+				UTCEpoch: time.Now().Unix(),
+				Username: "System",
+				Content: fmt.Sprintf(
+					"%s has joined the room.",
+					client.User.Username,
+				),
 			})
 		case client := <-c.leave:
+			c.SendMessage(ChannelMessage{
+				Type:     MessageTypeUserLeave,
+				UTCEpoch: time.Now().Unix(),
+				Username: "System",
+				Content: fmt.Sprintf(
+					"%s has left the room.",
+					client.User.Username,
+				),
+			})
+
 			if _, ok := c.connections[client]; ok {
 				delete(c.connections, client)
 				close(client.send)
 			}
 
-			c.Emit("user_left", ClientLeaveRoom{
-				Username: client.User.Username,
-			})
-
 			if len(c.connections) == 0 {
-				close(c.join)
 				close(c.closed)
 			} else {
 				if c.controller != client {
@@ -166,6 +180,14 @@ func (c *Channel) QueueInsert(m Media) {
 	if c.Playing != nil {
 		c.Queued = append(c.Queued, m)
 		c.Emit("queue_updated", m)
+
+		c.SendMessage(ChannelMessage{
+			Type:     MessageTypeMediaQueued,
+			UTCEpoch: time.Now().Unix(),
+			Username: "System",
+			Content:  fmt.Sprintf("%s - %s has been added to the queue.", *m.Title, *m.Series),
+		})
+
 		return
 	}
 
@@ -180,6 +202,13 @@ func (c *Channel) QueueInsert(m Media) {
 	}
 
 	c.Emit("media_changed", c.Playing)
+	c.SendMessage(ChannelMessage{
+		Type:     MessageTypeMediaChanged,
+		UTCEpoch: time.Now().Unix(),
+		Username: "System",
+		Content:  fmt.Sprintf("%s - %s is now playing.", *m.Title, *m.Series),
+	})
+
 	go c.playback()
 }
 
@@ -199,6 +228,13 @@ func (c *Channel) QueueChange() {
 	}
 
 	c.Emit("media_changed", c.Playing)
+	c.SendMessage(ChannelMessage{
+		Type:     MessageTypeMediaChanged,
+		UTCEpoch: time.Now().Unix(),
+		Username: "System",
+		Content:  fmt.Sprintf("%s - %s is now playing.", *next.Title, *next.Series),
+	})
+
 	c.Queued = c.Queued[1:]
 }
 
@@ -224,13 +260,13 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 
 	// Handles pause/play state changes.
 	if state.Paused != nil && c.Playing.Paused != *state.Paused {
-		c.Playing.Paused = *state.Paused
-
 		if *state.Paused == false {
 			c.Playing.lastResume = time.Now()
 		} else {
 			c.Playing.CurrentTime = c.Playing.CurrentPlaybackTime()
 		}
+
+		c.Playing.Paused = *state.Paused
 	}
 
 	// Handles current playback time changes.
@@ -242,4 +278,9 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 		Paused:      c.Playing.Paused,
 		CurrentTime: c.Playing.CurrentTime,
 	}, sender)
+}
+
+func (c *Channel) SendMessage(message ChannelMessage) {
+	c.Messages = append(c.Messages, message)
+	c.Emit("channel_message", message)
 }
