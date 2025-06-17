@@ -143,6 +143,32 @@ func Websocket(c *websocket.Conn) {
 
 			channel.PlayerState(client, updatedState)
 		})
+
+		client.On("run_command", func(msg any) {
+			command, ok := msg.(map[string]any)
+			if !ok {
+				logger.Log.Debug("Command failed to run. Command is not a structure.")
+				return
+			}
+
+			commandType, ok := command["type"].(float64)
+			if !ok {
+				logger.Log.Debug("Command failed to run. Command type is not an integer.", "type", command["type"])
+				return
+			}
+
+			switch ws.CommandType(commandType) {
+			case ws.CommandTypeTakeRemote:
+				channel.GrantControl(client)
+				break
+			case ws.CommandTypePurgeMessages:
+				channel.PurgeMessages(client)
+				break
+			case ws.CommandTypeSkip:
+				channel.QueueChange()
+				break
+			}
+		})
 	})
 
 	<-client.Disconnected

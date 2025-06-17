@@ -89,3 +89,15 @@ type ChannelMessage struct {
 	Username string      `json:"username"`
 	Content  string      `json:"content"`
 }
+
+type CommandType int
+
+const (
+	CommandTypeTakeRemote CommandType = iota
+	CommandTypePurgeMessages
+	CommandTypeSkip
+)
+
+type Command struct {
+	Type CommandType `json:"type"`
+}

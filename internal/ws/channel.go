@@ -142,6 +142,41 @@ func (c *Channel) Emit(event string, data any) {
 	}
 }
 
+func (c *Channel) SendMessage(message ChannelMessage) {
+	if len(c.Messages) >= MaxStoredMessages {
+		c.Messages = c.Messages[1:]
+	}
+
+	c.Messages = append(c.Messages, message)
+	c.Emit("channel_message", message)
+}
+
+func (c *Channel) PurgeMessages(sender *Client) {
+	c.Messages = make([]ChannelMessage, 0)
+
+	c.Emit("command", Command{
+		Type: CommandTypePurgeMessages,
+	})
+
+	c.SendMessage(ChannelMessage{
+		Type:     MessageTypeNotification,
+		UTCEpoch: time.Now().Unix(),
+		Username: "System",
+		Content:  fmt.Sprintf("%s has purged channel messages.", sender.User.Username),
+	})
+}
+
+func (c *Channel) GrantControl(sender *Client) {
+	c.controller = sender
+
+	c.SendMessage(ChannelMessage{
+		Type:     MessageTypeNotification,
+		UTCEpoch: time.Now().Unix(),
+		Username: "System",
+		Content:  fmt.Sprintf("%s has taken control of the room.", sender.User.Username),
+	})
+}
+
 func (c *Channel) playback() {
 	for {
 		select {
@@ -282,13 +317,4 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 	}, sender)
 
 	c.Playing.ticker.Reset(1 * time.Second) // Restarts the ticker to start sending updates again
-}
-
-func (c *Channel) SendMessage(message ChannelMessage) {
-	if len(c.Messages) >= MaxStoredMessages {
-		c.Messages = c.Messages[1:]
-	}
-
-	c.Messages = append(c.Messages, message)
-	c.Emit("channel_message", message)
 }
