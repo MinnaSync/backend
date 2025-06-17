@@ -148,25 +148,21 @@ func (c *Channel) playback() {
 		case <-c.Playing.ticker.C:
 			currentPlaybackTime := c.Playing.CurrentPlaybackTime()
 
-			// Do not push any sync events when paused.
-			if c.Playing.Paused {
-				continue
-			}
-
-			if (int64(currentPlaybackTime) % 10) == 0 {
-				c.Emit("state_sync", PlaybackState{
-					Paused:      c.Playing.Paused,
-					CurrentTime: currentPlaybackTime,
-				})
-			}
-
-			if currentPlaybackTime > c.Playing.Duration {
+			if currentPlaybackTime >= c.Playing.Duration-0.5 {
 				if len(c.Queued) != 0 {
 					c.QueueChange()
 					continue
 				}
 
 				close(c.Playing.finished)
+				continue
+			}
+
+			if !c.Playing.Paused && (int64(currentPlaybackTime)%10) == 0 {
+				c.Emit("state_sync", PlaybackState{
+					Paused:      c.Playing.Paused,
+					CurrentTime: currentPlaybackTime,
+				})
 			}
 		case <-c.Playing.finished:
 			c.Playing.ticker.Stop()
