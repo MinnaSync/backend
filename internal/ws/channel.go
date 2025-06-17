@@ -196,7 +196,7 @@ func (c *Channel) QueueInsert(m Media) {
 		Paused:      false,
 		CurrentTime: 0,
 
-		lastResume: time.Now(),
+		lastChange: time.Now(),
 		ticker:     time.NewTicker(1 * time.Second),
 		finished:   make(chan bool),
 	}
@@ -222,7 +222,7 @@ func (c *Channel) QueueChange() {
 		Paused:      false,
 		CurrentTime: 0,
 
-		lastResume: time.Now(),
+		lastChange: time.Now(),
 		ticker:     time.NewTicker(1 * time.Second),
 		finished:   make(chan bool),
 	}
@@ -258,10 +258,12 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 		return
 	}
 
+	c.Playing.ticker.Stop() // Stop the ticker to prevent sending any updates.
+
 	// Handles pause/play state changes.
 	if state.Paused != nil && c.Playing.Paused != *state.Paused {
 		if *state.Paused == false {
-			c.Playing.lastResume = time.Now()
+			c.Playing.lastChange = time.Now()
 		} else {
 			c.Playing.CurrentTime = c.Playing.CurrentPlaybackTime()
 		}
@@ -271,6 +273,7 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 
 	// Handles current playback time changes.
 	if state.CurrentTime != nil && c.Playing.CurrentTime != *state.CurrentTime {
+		c.Playing.lastChange = time.Now()
 		c.Playing.CurrentTime = *state.CurrentTime
 	}
 
@@ -278,6 +281,8 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 		Paused:      c.Playing.Paused,
 		CurrentTime: c.Playing.CurrentTime,
 	}, sender)
+
+	c.Playing.ticker.Reset(1 * time.Second) // Restarts the ticker to start sending updates again
 }
 
 func (c *Channel) SendMessage(message ChannelMessage) {

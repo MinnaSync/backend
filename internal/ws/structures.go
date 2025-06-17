@@ -54,7 +54,7 @@ type NowPlayingMedia struct {
 	Paused      bool    `json:"paused"`
 	CurrentTime float64 `json:"current_time"`
 
-	lastResume time.Time
+	lastChange time.Time
 	ticker     *time.Ticker
 	finished   chan bool
 }
@@ -64,7 +64,7 @@ func (n *NowPlayingMedia) CurrentPlaybackTime() float64 {
 		return n.CurrentTime
 	}
 
-	return n.CurrentTime + float64(time.Since(n.lastResume).Seconds())
+	return n.CurrentTime + float64(time.Since(n.lastChange).Seconds())
 }
 
 type PlaybackStateUpdated struct {
