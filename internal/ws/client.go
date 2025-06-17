@@ -7,6 +7,19 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	// The max size a message sent to the Websocket can be.
+	MaxBufferSize = 512 * 2
+	// How long a client has to read the next message.
+	ResponseWait = 60 * time.Second
+	// How long a client has to write a message
+	ReplyWait = 60 * time.Second
+	// How often the client should be pinged by the server.
+	PingInterval = 30 * time.Second
+
+	clients = make(map[string]*Client, 0)
+)
+
 type UserInfo struct {
 	Username string
 }
@@ -28,7 +41,7 @@ type Client struct {
 func NewClient(conn *websocket.Conn) *Client {
 	id := uuid.NewString()
 
-	return &Client{
+	client := &Client{
 		id:   id,
 		conn: conn,
 
@@ -42,6 +55,10 @@ func NewClient(conn *websocket.Conn) *Client {
 		},
 		Disconnected: make(chan bool, 1),
 	}
+
+	clients[id] = client
+
+	return client
 }
 
 func (c *Client) writePump() {
@@ -77,6 +94,8 @@ func (c *Client) writePump() {
 			if c.Channel != nil {
 				c.Channel.leave <- c
 			}
+
+			delete(clients, c.id)
 
 			return
 		}
