@@ -12,45 +12,51 @@ import (
 func Websocket(c *websocket.Conn) {
 	client := ws.Serve(c)
 
+	// TODO: This flow needs to be refactored.
+	//
+	// Right now it waits on the join_channel event before "connecting" to the actual channel.
+	// We send a join notification the second the client connects.
+	// This is done because we want to allow the user to set a guest username before firing the notification for joining.
+	// Instead, it should immediately connect to the channel, but not send a join notification util we get the join_channel event.
+
 	client.On("connection", func(msg any) {
 		client.Emit("connected", any(nil))
+	})
 
-		var channel *ws.Channel
-		client.On("join_channel", func(msg any) {
-			joinInfo, ok := msg.(map[string]any)
-			if !ok {
-				logger.Log.Debug("Client failed to join. Join info is not a structure.")
-				return
+	client.On("join_channel", func(msg any) {
+		joinInfo, ok := msg.(map[string]any)
+		if !ok {
+			logger.Log.Debug("Client failed to join. Join info is not a structure.")
+			return
+		}
+
+		channelId, ok := joinInfo["channel_id"].(string)
+		if !ok {
+			logger.Log.Debug("Client provided an invalid channel_id.")
+			return
+		}
+
+		if username, ok := joinInfo["guest_username"].(string); ok {
+			if len := len(username); len >= 3 && len <= 16 {
+				client.User.Username = username
 			}
+		}
 
-			channelId, ok := joinInfo["channel_id"].(string)
-			if !ok {
-				logger.Log.Debug("Client provided an invalid channel_id.")
-				return
+		channel := client.ChannelConnect(channelId)
+
+		var nowPlaying *ws.NowPlayingMedia
+		if channel.Playing != nil {
+			nowPlaying = &ws.NowPlayingMedia{
+				Media:       channel.Playing.Media,
+				Paused:      channel.Playing.Paused,
+				CurrentTime: channel.Playing.CurrentPlaybackTime(),
 			}
+		}
 
-			if username, ok := joinInfo["guest_username"].(string); ok {
-				if len := len(username); len >= 3 && len <= 16 {
-					client.User.Username = username
-				}
-			}
-
-			channel = client.ChannelConnect(channelId)
-
-			var nowPlaying *ws.NowPlayingMedia
-			if channel.Playing != nil {
-				nowPlaying = &ws.NowPlayingMedia{
-					Media:       channel.Playing.Media,
-					Paused:      channel.Playing.Paused,
-					CurrentTime: channel.Playing.CurrentPlaybackTime(),
-				}
-			}
-
-			client.Emit("room_data", ws.RoomData{
-				NowPlaying: nowPlaying,
-				Queue:      channel.Queued,
-				Messages:   channel.Messages,
-			})
+		client.Emit("room_data", ws.RoomData{
+			NowPlaying: nowPlaying,
+			Queue:      channel.Queued,
+			Messages:   channel.Messages,
 		})
 
 		client.On("send_message", func(msg any) {
