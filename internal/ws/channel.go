@@ -9,6 +9,9 @@ import (
 )
 
 var (
+	// The amount of messages that will be stored in-memory for a channel.
+	MaxStoredMessages = 100
+
 	channels = make(map[string]*Channel)
 )
 
@@ -45,7 +48,7 @@ func JoinChannel(channelId string, client *Client) *Channel {
 
 		Playing:  nil,
 		Queued:   make([]Media, 0),
-		Messages: make([]ChannelMessage, 0, 100),
+		Messages: make([]ChannelMessage, 0, MaxStoredMessages),
 
 		join:  make(chan *Client),
 		leave: make(chan *Client),
@@ -286,6 +289,10 @@ func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
 }
 
 func (c *Channel) SendMessage(message ChannelMessage) {
+	if len(c.Messages) >= MaxStoredMessages {
+		c.Messages = c.Messages[1:]
+	}
+
 	c.Messages = append(c.Messages, message)
 	c.Emit("channel_message", message)
 }
