@@ -3,7 +3,6 @@ package ws
 import (
 	"time"
 
-	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
 )
@@ -41,7 +40,7 @@ func NewClient(conn *websocket.Conn) *Client {
 		User: UserInfo{
 			Username: "Guest_" + id,
 		},
-		Disconnected: make(chan bool, 1),
+		Disconnected: make(chan bool),
 	}
 }
 
@@ -69,22 +68,24 @@ func (c *Client) writePump() {
 		case msg := <-c.recv:
 			c.handle(msg)
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(ResponseWait))
+			c.conn.SetWriteDeadline(time.Now().Add(ReplyWait))
+
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Log.Error("Failed to ping client.")
 				return
 			}
+		case <-c.Disconnected:
+			if c.Channel != nil {
+				c.Channel.leave <- c
+			}
+
+			return
 		}
 	}
 }
 
 func (c *Client) readPump() {
 	defer func() {
-		if c.Channel != nil {
-			c.Channel.leave <- c
-		}
-
-		c.Disconnected <- true
+		close(c.Disconnected)
 	}()
 
 	c.conn.SetReadLimit(int64(MaxBufferSize))
