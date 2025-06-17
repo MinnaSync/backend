@@ -82,6 +82,10 @@ func (c *Channel) open() {
 					client.User.Username,
 				),
 			})
+
+			if c.controller == nil {
+				c.controller = client
+			}
 		case client := <-c.leave:
 			c.SendMessage(ChannelMessage{
 				Type:     MessageTypeUserLeave,
@@ -98,22 +102,18 @@ func (c *Channel) open() {
 				close(client.send)
 			}
 
-			if len(c.connections) == 0 {
-				close(c.closed)
-			} else {
-				if c.controller != client {
+			// Removes the controller and selects a new one if the channel has clients.
+			// TODO: Add a timer for when the room should automatically close after inactivity.
+			if c.controller == client {
+				c.controller = nil
+
+				if len(c.connections) == 0 {
 					continue
 				}
 
-				var controller *Client
 				for c := range c.connections {
-					controller = c
+					c.Channel.controller = c
 					break
-				}
-
-				if controller != nil {
-					c.controller = controller
-					// logger.Log.Debug(fmt.Sprintf("User %s is now the controller for room %s.", controller.User.Username, c.id))
 				}
 			}
 		case <-c.closed:
