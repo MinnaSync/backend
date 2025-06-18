@@ -167,8 +167,11 @@ func (c *Channel) PurgeMessages(sender *Client) {
 }
 
 func (c *Channel) GrantControl(sender *Client) {
-	c.controller = sender
+	if c.controller == sender {
+		return
+	}
 
+	c.controller = sender
 	c.SendMessage(ChannelMessage{
 		Type:     MessageTypeNotification,
 		UTCEpoch: time.Now().Unix(),
