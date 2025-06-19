@@ -253,6 +253,10 @@ func (c *Channel) QueueChange() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if len(c.Queued) == 0 {
+		return
+	}
+
 	next := c.Queued[0]
 	c.Playing = &NowPlayingMedia{
 		Media:       next,
