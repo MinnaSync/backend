@@ -10,14 +10,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func separateOrigins() []string {
-	return strings.Split(config.WSAllowOrigins, ",")
-}
-
 func Register(app *fiber.App) {
 	app.Use("/ws", handlers.WSUpgrader)
 	app.Get("/ws", websocket.New(Websocket, websocket.Config{
-		Origins: separateOrigins(),
+		Origins: strings.Split(config.WSAllowOrigins, ","),
 
 		ReadBufferSize:  ws.MaxBufferSize,
 		WriteBufferSize: ws.MaxBufferSize,
