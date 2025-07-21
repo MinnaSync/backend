@@ -259,8 +259,7 @@ func (c *Channel) QueueRemove(id string) {
 			continue
 		}
 
-		q := slices.Delete(c.Queued, i, i+1)
-		c.Queued = q
+		c.Queued = slices.Delete(c.Queued, i, i+1)
 
 		c.Emit("media_removed", MediaId{
 			ID: id,
@@ -302,6 +301,16 @@ func (c *Channel) QueueChange() {
 	})
 
 	c.Queued = c.Queued[1:]
+}
+
+func (c *Channel) QueueSort(id string, i int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.Queued) == 0 {
+		return
+	}
+
 }
 
 func (c *Channel) PlayerState(sender *Client, state PlaybackStateUpdated) {
