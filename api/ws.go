@@ -20,7 +20,7 @@ func Websocket(c *websocket.Conn) {
 	// Instead, it should immediately connect to the channel, but not send a join notification util we get the join_channel event.
 
 	client.On("connection", func(msg any) {
-		client.Emit("connected", any(nil))
+		client.Emit("connected", map[string]any{})
 	})
 
 	client.On("join_channel", func(msg any) {
