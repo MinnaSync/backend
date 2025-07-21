@@ -262,7 +262,7 @@ func (c *Channel) QueueRemove(id string) {
 		q := slices.Delete(c.Queued, i, i+1)
 		c.Queued = q
 
-		c.Emit("queue_updated", MediaId{
+		c.Emit("media_removed", MediaId{
 			ID: id,
 		})
 		c.SendMessage(ChannelMessage{
