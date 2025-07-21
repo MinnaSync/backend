@@ -2,6 +2,7 @@ package ws
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -247,6 +248,30 @@ func (c *Channel) QueueInsert(m Media) {
 	})
 
 	go c.playback()
+}
+
+func (c *Channel) QueueRemove(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for i, m := range c.Queued {
+		if m.ID != id {
+			continue
+		}
+
+		q := slices.Delete(c.Queued, i, i+1)
+		c.Queued = q
+
+		c.Emit("queue_updated", MediaId{
+			ID: id,
+		})
+		c.SendMessage(ChannelMessage{
+			Type:     MessageTypeMediaRemoved,
+			UTCEpoch: time.Now().Unix(),
+			Username: "System",
+			Content:  fmt.Sprintf("%s - %s has been removed from the queue.", *m.Title, *m.Series),
+		})
+	}
 }
 
 func (c *Channel) QueueChange() {

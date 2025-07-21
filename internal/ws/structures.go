@@ -40,6 +40,10 @@ type BroadcastMessage struct {
 	Message Message
 }
 
+type MediaId struct {
+	ID string `json:"id"`
+}
+
 type Media struct {
 	ID             string  `json:"id"`
 	Title          *string `json:"title"`
@@ -81,6 +85,7 @@ const (
 	MessageTypeUserMessage
 	MessageTypeMediaChanged
 	MessageTypeMediaQueued
+	MessageTypeMediaRemoved
 )
 
 type ChannelMessage struct {

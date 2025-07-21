@@ -169,6 +169,22 @@ func Websocket(c *websocket.Conn) {
 				break
 			}
 		})
+
+		client.On("queue_remove", func(msg any) {
+			mediaId, ok := msg.(map[string]any)
+			if !ok {
+				logger.Log.Debug("Media ID failed to remove. Media ID is not a structure.")
+				return
+			}
+
+			id, ok := mediaId["id"].(string)
+			if !ok {
+				logger.Log.Debug("Media ID failed to remove. Media ID is not a string.")
+				return
+			}
+
+			channel.QueueRemove(id)
+		})
 	})
 
 	<-client.Disconnected
