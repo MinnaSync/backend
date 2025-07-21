@@ -48,6 +48,7 @@ type Media struct {
 	ID             string  `json:"id"`
 	Title          *string `json:"title"`
 	Series         *string `json:"series"`
+	Episode        *int    `json:"episode"`
 	URL            string  `json:"url"`
 	PosterImageURL *string `json:"poster_image_url"`
 	Duration       float64 `json:"-"`

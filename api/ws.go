@@ -118,6 +118,11 @@ func Websocket(c *websocket.Conn) {
 				mediaData.Series = &series
 			}
 
+			if episode, ok := media["episode"].(float64); ok {
+				i := int(episode)
+				mediaData.Episode = &i
+			}
+
 			if posterImageURL, ok := media["poster_image_url"].(string); ok {
 				mediaData.PosterImageURL = &posterImageURL
 			}
