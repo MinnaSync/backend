@@ -1,22 +1,30 @@
 package config
 
-import "os"
+import (
+	"sync"
 
-var (
-	WSPort         string
-	WSAllowOrigins string
+	"github.com/caarlos0/env"
 )
 
-func Load() {
-	var ok bool
-
-	WSPort, ok = os.LookupEnv("WS_PORT")
-	if !ok || WSPort == "" {
-		WSPort = "8080"
+type (
+	Config struct {
+		Port         string `env:"PORT" envDefault:"8080"`
+		AllowOrigins string `env:"ALLOW_ORIGINS"`
 	}
+)
 
-	WSAllowOrigins, ok = os.LookupEnv("WS_ALLOW_ORIGINS")
-	if !ok || WSAllowOrigins == "" {
-		panic("WS_ALLOW_ORIGINS is not set.")
+var (
+	once sync.Once
+
+	Conf Config
+)
+
+func load() {
+	if err := env.Parse(&Conf); err != nil {
+		panic(err)
 	}
+}
+
+func init() {
+	once.Do(load)
 }

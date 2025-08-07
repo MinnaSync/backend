@@ -8,17 +8,15 @@ import (
 )
 
 func main() {
-	config.Load()
-
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: config.WSAllowOrigins,
+		AllowOrigins: config.Conf.AllowOrigins,
 		AllowMethods: "GET,POST,OPTIONS",
 	}))
 
 	api.Register(app)
-	app.Listen(":" + config.WSPort)
+	app.Listen(":" + config.Conf.Port)
 }

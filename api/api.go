@@ -13,7 +13,7 @@ import (
 func Register(app *fiber.App) {
 	app.Use("/ws", handlers.WSUpgrader)
 	app.Get("/ws", websocket.New(Websocket, websocket.Config{
-		Origins: strings.Split(config.WSAllowOrigins, ","),
+		Origins: strings.Split(config.Conf.AllowOrigins, ","),
 
 		ReadBufferSize:  ws.MaxBufferSize,
 		WriteBufferSize: ws.MaxBufferSize,
