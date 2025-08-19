@@ -115,8 +115,7 @@ func (c *Client) readPump() {
 	c.conn.SetReadLimit(int64(MaxBufferSize))
 	c.conn.SetReadDeadline(time.Now().Add(ResponseWait))
 	c.conn.SetPongHandler(func(_ string) error {
-		c.conn.SetReadDeadline(time.Now().Add(ResponseWait))
-		return nil
+		return c.conn.SetReadDeadline(time.Now().Add(ResponseWait))
 	})
 
 	for {
