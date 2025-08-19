@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MinnaSync/minna-sync-backend/internal/logger"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -69,7 +69,7 @@ func (c *Channel) open() {
 		select {
 		case client, open := <-c.join:
 			if !open {
-				logger.Log.Warn("Client attempted to join closed channel.")
+				log.Warn("Client attempted to join a closed channel.")
 				return
 			}
 

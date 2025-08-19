@@ -5,6 +5,8 @@ import (
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -74,12 +76,14 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(ReplyWait))
 
 			if !ok {
+				log.Warn("Client unexpectedly closed.")
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
 			err := c.conn.WriteJSON(msg)
 			if err != nil {
+				log.WithError(err).Error("Failed to write message to client.")
 				return
 			}
 		case msg := <-c.recv:
@@ -88,6 +92,7 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(ReplyWait))
 
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.WithError(err).Error("Failed to ping client in the desired timespan.")
 				return
 			}
 		case <-c.Disconnected:
@@ -118,6 +123,7 @@ func (c *Client) readPump() {
 		msg := new(Message)
 		err := c.conn.ReadJSON(msg)
 		if err != nil {
+			log.WithError(err).Error("Failed to read message from client.")
 			return
 		}
 

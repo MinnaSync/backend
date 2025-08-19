@@ -4,11 +4,11 @@ go 1.24.1
 
 require (
 	github.com/caarlos0/env v3.5.0+incompatible
-	github.com/dusted-go/logging v1.3.0
 	github.com/etherlabsio/go-m3u8 v1.0.0
 	github.com/gofiber/contrib/websocket v1.3.4
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/google/uuid v1.6.0
+	github.com/sirupsen/logrus v1.9.3
 )
 
 require (

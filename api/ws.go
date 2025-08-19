@@ -3,10 +3,11 @@ package api
 import (
 	"time"
 
-	"github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/MinnaSync/minna-sync-backend/internal/m3u8_duration"
 	"github.com/MinnaSync/minna-sync-backend/internal/ws"
 	"github.com/gofiber/contrib/websocket"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Websocket(c *websocket.Conn) {
@@ -26,13 +27,13 @@ func Websocket(c *websocket.Conn) {
 	client.On("join_channel", func(msg any) {
 		joinInfo, ok := msg.(map[string]any)
 		if !ok {
-			logger.Log.Debug("Client failed to join. Join info is not a structure.")
+			log.Debug("Client failed to join. Join info is not a structure.")
 			return
 		}
 
 		channelId, ok := joinInfo["channel_id"].(string)
 		if !ok {
-			logger.Log.Debug("Client provided an invalid channel_id.")
+			log.Debug("Client provided an invalid channel_id.")
 			return
 		}
 
@@ -62,13 +63,13 @@ func Websocket(c *websocket.Conn) {
 		client.On("send_message", func(msg any) {
 			messageContent, ok := msg.(map[string]any)
 			if !ok {
-				logger.Log.Debug("Message failed to send. Content is not a structure.")
+				log.Debug("Message failed to send. Content is not a structure.")
 				return
 			}
 
 			message, ok := messageContent["message"].(string)
 			if !ok {
-				logger.Log.Debug("Message failed to send. Message content is not a string.")
+				log.Debug("Message failed to send. Message content is not a string.")
 				return
 			}
 
@@ -85,13 +86,13 @@ func Websocket(c *websocket.Conn) {
 
 			media, ok := msg.(map[string]any)
 			if !ok {
-				logger.Log.Debug("Media failed to queue. Media is not a structure.")
+				log.Debug("Media failed to queue. Media is not a structure.")
 				return
 			}
 
 			id, ok := media["id"].(string)
 			if !ok {
-				logger.Log.Debug("Media failed to queue. Media ID is not a string.")
+				log.Debug("Media failed to queue. Media ID is not a string.")
 				return
 			}
 			mediaData.ID = id
@@ -102,14 +103,14 @@ func Websocket(c *websocket.Conn) {
 
 			url, ok := media["url"].(string)
 			if !ok {
-				logger.Log.Debug("Media failed to queue. Media URL is not a string.")
+				log.Debug("Media failed to queue. Media URL is not a string.")
 				return
 			}
 			mediaData.URL = url
 
 			duration, err := m3u8_duration.FetchM3u8Duration(url)
 			if err != nil {
-				logger.Log.Debug("Media failed to queue. Failed to fetch duration.")
+				log.Debug("Media failed to queue. Failed to fetch duration.")
 				return
 			}
 			mediaData.Duration = duration
@@ -152,13 +153,13 @@ func Websocket(c *websocket.Conn) {
 		client.On("run_command", func(msg any) {
 			command, ok := msg.(map[string]any)
 			if !ok {
-				logger.Log.Debug("Command failed to run. Command is not a structure.")
+				log.Debug("Command failed to run. Command is not a structure.")
 				return
 			}
 
 			commandType, ok := command["type"].(float64)
 			if !ok {
-				logger.Log.Debug("Command failed to run. Command type is not an integer.", "type", command["type"])
+				log.Debug("Command failed to run. Command type is not an integer.", "type", command["type"])
 				return
 			}
 
@@ -178,13 +179,13 @@ func Websocket(c *websocket.Conn) {
 		client.On("queue_remove", func(msg any) {
 			mediaId, ok := msg.(map[string]any)
 			if !ok {
-				logger.Log.Debug("Media ID failed to remove. Media ID is not a structure.")
+				log.Debug("Media ID failed to remove. Media ID is not a structure.")
 				return
 			}
 
 			id, ok := mediaId["id"].(string)
 			if !ok {
-				logger.Log.Debug("Media ID failed to remove. Media ID is not a string.")
+				log.Debug("Media ID failed to remove. Media ID is not a string.")
 				return
 			}
 

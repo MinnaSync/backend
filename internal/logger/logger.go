@@ -1,26 +1,39 @@
 package logger
 
 import (
-	"log/slog"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 
-	"github.com/dusted-go/logging/prettylog"
+	"github.com/sirupsen/logrus"
 )
 
-var Log *slog.Logger
+type Formatter struct{}
 
-func init() {
-	logLevel := slog.LevelInfo
+func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
+	var buff bytes.Buffer
 
-	if os.Getenv("ENVIRONMENT") == "development" {
-		logLevel = slog.LevelDebug
+	fmt.Fprintf(
+		&buff, "[%s] %s: %s\n",
+		entry.Time.Format("2006-01-02T15:04:05.000Z"),
+		strings.ToUpper(entry.Level.String()), entry.Message,
+	)
+
+	if len(entry.Data) > 0 {
+		fields, err := json.MarshalIndent(entry.Data, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Fprintf(&buff, "%s\n", fields)
 	}
 
-	prettyHandler := prettylog.NewHandler(&slog.HandlerOptions{
-		Level:       logLevel,
-		AddSource:   true,
-		ReplaceAttr: nil,
-	})
+	return buff.Bytes(), nil
+}
 
-	Log = slog.New(prettyHandler)
+func init() {
+	logrus.SetFormatter(&Formatter{})
+	logrus.SetOutput(os.Stdout)
 }

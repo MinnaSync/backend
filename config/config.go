@@ -10,6 +10,8 @@ type (
 	Config struct {
 		Port         string `env:"PORT" envDefault:"8080"`
 		AllowOrigins string `env:"ALLOW_ORIGINS"`
+
+		LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 	}
 )
 
