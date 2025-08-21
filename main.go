@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/MinnaSync/minna-sync-backend/api"
 	"github.com/MinnaSync/minna-sync-backend/config"
+	_ "github.com/MinnaSync/minna-sync-backend/internal/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/sirupsen/logrus"
