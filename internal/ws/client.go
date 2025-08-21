@@ -83,6 +83,10 @@ func (c *Client) writePump() {
 
 			err := c.conn.WriteJSON(msg)
 			if err != nil {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+					return
+				}
+
 				log.WithField("message", err.Error()).WithError(err).Error("Failed to write message to client.")
 				return
 			}
@@ -122,6 +126,10 @@ func (c *Client) readPump() {
 		msg := new(Message)
 		err := c.conn.ReadJSON(msg)
 		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				return
+			}
+
 			log.WithField("message", err.Error()).WithError(err).Error("Failed to read message from client")
 			return
 		}
