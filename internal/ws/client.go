@@ -83,7 +83,7 @@ func (c *Client) writePump() {
 
 			err := c.conn.WriteJSON(msg)
 			if err != nil {
-				log.WithError(err).Error("Failed to write message to client.")
+				log.WithField("message", err.Error()).WithError(err).Error("Failed to write message to client.")
 				return
 			}
 		case msg := <-c.recv:
@@ -92,7 +92,7 @@ func (c *Client) writePump() {
 			c.conn.SetWriteDeadline(time.Now().Add(ReplyWait))
 
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.WithError(err).Error("Failed to ping client in the desired timespan.")
+				log.WithField("message", err.Error()).WithError(err).Error("Failed to ping client in the desired timespan.")
 				return
 			}
 		case <-c.Disconnected:
@@ -122,7 +122,7 @@ func (c *Client) readPump() {
 		msg := new(Message)
 		err := c.conn.ReadJSON(msg)
 		if err != nil {
-			log.WithError(err).Error("Failed to read message from client.")
+			log.WithField("message", err.Error()).WithError(err).Error("Failed to read message from client")
 			return
 		}
 
