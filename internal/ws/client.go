@@ -126,6 +126,11 @@ func (c *Client) readPump() {
 		msg := new(Message)
 		err := c.conn.ReadJSON(msg)
 		if err != nil {
+			// Prevents disconnecting the client if the message is too big.
+			if websocket.IsCloseError(err, websocket.CloseMessageTooBig) {
+				continue
+			}
+
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return
 			}
