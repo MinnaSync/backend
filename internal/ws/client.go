@@ -2,6 +2,7 @@ package ws
 
 import (
 	"time"
+	"unsafe"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
@@ -124,13 +125,13 @@ func (c *Client) readPump() {
 
 	for {
 		msg := new(Message)
+		msgSize := unsafe.Sizeof(*msg)
+		if int(msgSize) > MaxBufferSize {
+			continue
+		}
+
 		err := c.conn.ReadJSON(msg)
 		if err != nil {
-			// Prevents disconnecting the client if the message is too big.
-			if websocket.IsCloseError(err, websocket.CloseMessageTooBig) {
-				continue
-			}
-
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return
 			}
